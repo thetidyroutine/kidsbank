@@ -160,7 +160,7 @@ function shell(content, active) {
     ? [['', 'Mein Konto', 'home']]
     : [['', 'Übersicht', 'home'], ...(p.role === 'admin' ? [['verwaltung', 'Verwaltung', 'admin']] : [])];
   app.innerHTML = `<header class="topbar"><div class="topbar-in">
-      <a class="brand" href="#/"><span class="brand-mark"></span>KidsBank</a>
+      <a class="brand" href="#/"><img class="brand-mark" src="icons/icon-192.png" alt="">KidsBank</a>
       <nav style="display:flex;gap:2px">
         ${links.map(([h, l, k]) => `<a class="nav-link ${active === k ? 'on' : ''}" href="#/${h}">${l}</a>`).join('')}
         <a class="nav-link ${active === 'settings' ? 'on' : ''}" href="#/einstellungen">Profil</a>
@@ -171,7 +171,7 @@ function shell(content, active) {
 
 function renderMessage(text) {
   app.innerHTML = `<div class="auth"><div class="auth-card">
-    <div class="auth-brand"><span class="brand-mark"></span>KidsBank</div>
+    <div class="auth-brand"><img class="brand-mark" src="icons/icon-192.png" alt="">KidsBank</div>
     <p>${esc(text)}</p>
     <button class="btn" data-act="logout">Abmelden</button>
   </div></div>`;
@@ -182,7 +182,7 @@ function renderMessage(text) {
 function renderLogin() {
   app.innerHTML = `<div class="auth"><form class="auth-card form-grid" id="login">
     <div>
-      <div class="auth-brand"><span class="brand-mark"></span>KidsBank</div>
+      <div class="auth-brand"><img class="brand-mark" src="icons/icon-192.png" alt="">KidsBank</div>
       <div class="muted small">Das Taschengeld-Konto der Familie</div>
     </div>
     <label class="field">Benutzername<input name="username" autocomplete="username" autocapitalize="none" required></label>
@@ -214,7 +214,7 @@ function renderLogin() {
 function renderMfa() {
   app.innerHTML = `<div class="auth"><form class="auth-card form-grid" id="mfa">
     <div>
-      <div class="auth-brand"><span class="brand-mark"></span>KidsBank</div>
+      <div class="auth-brand"><img class="brand-mark" src="icons/icon-192.png" alt="">KidsBank</div>
       <div class="muted small">Bitte den 6-stelligen Code aus der Authenticator-App eingeben.</div>
     </div>
     <label class="field">Code<input name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" required></label>

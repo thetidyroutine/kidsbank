@@ -1,6 +1,6 @@
 // Caches only the app files so it opens quickly. Account data is never stored here.
-const CACHE = 'kidsbank-v1';
-const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'charts.js', 'config.js', 'vendor/supabase.js', 'fonts/inter.woff2', 'icons/icon-192.png'];
+const CACHE = 'kidsbank-v2';
+const FILES = ['./', 'index.html', 'styles.css', 'app.js', 'charts.js', 'config.js', 'vendor/supabase.js', 'fonts/inter.woff2', 'icons/icon-192.png', 'img/login-bg.webp'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(FILES)).then(() => self.skipWaiting()));
