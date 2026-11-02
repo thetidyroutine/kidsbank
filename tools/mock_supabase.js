@@ -15,6 +15,7 @@
       { child_id: 2, weekly_amount: 16, start_date: '2025-01-01', paid_through: '2026-11-01' },
     ],
     requests: [{ id: 1, child_id: 1, kind: 'withdrawal', amount: 35, description: 'Kinobesuch mit Freundinnen', status: 'pending', created_at: '2026-10-30T10:00:00Z' }],
+    notifications: [{ id: 1, status: 'sent', sent_via: 'jobkiller', created_at: '2026-11-01T10:00:00Z' }],
     goals: [{ id: 1, child_id: 1, name: 'Neue Kopfhörer', target_amount: 180, created_at: '2026-09-01T10:00:00Z' }],
   };
   let id = 1000;
@@ -62,7 +63,7 @@
       }
       return db[this.table].filter((r) => {
         const cid = this.table === 'children' ? r.id : r.child_id;
-        if (this.table === 'profiles') return true;
+        if (this.table === 'profiles' || this.table === 'notifications') return true;
         return can(cid);
       });
     }

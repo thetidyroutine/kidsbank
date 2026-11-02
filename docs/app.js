@@ -519,15 +519,21 @@ function txForm(tx) {
 // ------------------------------------------------------------------ admin
 
 async function renderAdmin() {
-  const [children, settings, users, balances] = await Promise.all([
+  const [children, settings, users, balances, security, notes] = await Promise.all([
     q(sb.from('children').select('*').order('name')),
     q(sb.from('allowance_settings').select('*')),
     q(sb.from('profiles').select('*').order('username')),
     q(sb.from('child_balances').select('*')),
+    q(sb.rpc('admin_user_security')),
+    q(sb.from('notifications').select('id,status,sent_via,created_at,last_error').order('id', { ascending: false }).range(0, 19)),
   ]);
   const factors = await q(sb.auth.mfa.listFactors());
   const has2fa = factors.totp.some((f) => f.status === 'verified');
   state.adminData = { children, settings, users, balances };
+  const twoFa = new Set((security || []).filter((x) => x.has_2fa).map((x) => x.user_id));
+  const failed = notes.filter((n) => n.status === 'failed');
+  const waiting = notes.filter((n) => n.status === 'pending' || n.status === 'sending');
+  const last = notes.find((n) => n.status === 'sent');
   shell(`
     <div class="page-head"><h1>Verwaltung</h1></div>
     ${has2fa ? '' : `<section class="card" style="border-color:var(--gold)">
@@ -550,11 +556,19 @@ async function renderAdmin() {
     <section class="card"><h2>Benutzer</h2>
       ${users.map((u) => `<div class="row"><div class="row-main">
           <div class="row-title">${esc(u.username)}</div>
-          <div class="row-sub">${{ admin: 'Administrator', parent: 'Elternteil', child: 'Kind' }[u.role]}</div>
+          <div class="row-sub">${{ admin: 'Administrator', parent: 'Elternteil', child: 'Kind' }[u.role]} · ${u.phone ? esc(u.phone) : 'Keine WhatsApp-Nummer'} · 2FA ${twoFa.has(u.user_id) ? 'aktiv' : 'aus'}</div>
         </div>
-        ${u.user_id === state.profile.user_id ? '' : `<button class="btn sm" data-act="reset-password" data-id="${u.user_id}">Passwort zurücksetzen</button>`}
+        <div class="btns">
+          <button class="btn sm" data-act="edit-phone" data-id="${u.user_id}">Nummer</button>
+          ${u.user_id === state.profile.user_id ? '' : `<button class="btn sm" data-act="reset-password" data-id="${u.user_id}">Passwort</button>`}
+          ${u.user_id !== state.profile.user_id && twoFa.has(u.user_id) ? `<button class="btn sm danger" data-act="reset-2fa" data-id="${u.user_id}">2FA zurücksetzen</button>` : ''}
+        </div>
       </div>`).join('')}
       <p class="hint" style="margin:12px 0 0">Neue Benutzer werden im Supabase-Dashboard angelegt.</p>
+    </section>
+    <section class="card"><h2>WhatsApp-Nachrichten</h2>
+      <p class="small" style="margin:0">${last ? `Zuletzt gesendet am ${fmtDate(last.created_at.slice(0, 10))} über ${esc(last.sent_via)}.` : 'Noch nichts gesendet.'}${waiting.length ? ` ${waiting.length} warten auf den Versand.` : ''}</p>
+      ${failed.length ? `<p class="error" style="margin:8px 0 0">${failed.length} von den letzten ${notes.length} konnten nicht gesendet werden.</p>` : ''}
     </section>
   `, 'admin');
 }
@@ -562,19 +576,17 @@ async function renderAdmin() {
 // ------------------------------------------------------------------ account settings
 
 async function renderSettings() {
-  const isAdmin = state.profile.role === 'admin';
-  let mfa = '';
-  if (isAdmin) {
-    const factors = await q(sb.auth.mfa.listFactors());
-    const active = factors.totp.find((f) => f.status === 'verified');
-    mfa = `<section class="card"><h2>Zwei-Faktor-Schutz</h2>
-      ${active
-        ? `<p class="small" style="margin:0 0 12px">Aktiv. Beim Anmelden wird ein Code aus der Authenticator-App verlangt.</p>
-           <button class="btn danger" data-act="mfa-off" data-id="${active.id}">Deaktivieren</button>`
-        : `<p class="small" style="margin:0 0 12px">Nicht aktiv. Für das Admin-Konto empfohlen.</p>
-           <button class="btn primary" data-act="mfa-on">Einrichten</button>`}
-    </section>`;
-  }
+  const { role } = state.profile;
+  const factors = await q(sb.auth.mfa.listFactors());
+  const active = factors.totp.find((f) => f.status === 'verified');
+  const advice = { admin: 'Für das Admin-Konto dringend empfohlen.', parent: 'Empfohlen, weil dieses Konto Anfragen genehmigen kann.', child: 'Freiwillig. Wenn dein Handy verloren geht, kann der Administrator den Schutz zurücksetzen.' }[role];
+  const mfa = `<section class="card"><h2>Zwei-Faktor-Schutz</h2>
+    ${active
+      ? `<p class="small" style="margin:0 0 12px">Aktiv. Beim Anmelden wird ein Code aus der Authenticator-App verlangt.</p>
+         <button class="btn danger" data-act="mfa-off" data-id="${active.id}">Deaktivieren</button>`
+      : `<p class="small" style="margin:0 0 12px">Nicht aktiv. ${advice}</p>
+         <button class="btn primary" data-act="mfa-on">Einrichten</button>`}
+  </section>`;
   shell(`
     <div class="page-head"><h1>Profil</h1></div>
     <section class="card">
@@ -728,6 +740,25 @@ const actions = {
       toast('Passwort geändert');
     },
   }),
+  'edit-phone': (el) => {
+    const u = state.adminData.users.find((x) => x.user_id === el.dataset.id);
+    formDialog({
+      title: `WhatsApp-Nummer von ${u.username}`,
+      fields: [{ name: 'phone', label: 'Nummer mit Ländervorwahl', value: u.phone || '', inputmode: 'tel', hint: 'Zum Beispiel +41 79 123 45 67. Leer lassen, um keine Nachrichten zu senden.' }],
+      onSubmit: async (d) => {
+        const phone = d.phone.replace(/[\s()/-]/g, '') || null;
+        if (phone && !/^\+[0-9]{8,15}$/.test(phone)) throw new Error('Bitte die Nummer mit + und Ländervorwahl eingeben.');
+        await q(sb.from('profiles').update({ phone }).eq('user_id', u.user_id));
+        toast('Gespeichert');
+        route();
+      },
+    });
+  },
+  'reset-2fa': (el) => confirmDialog('2FA zurücksetzen?', 'Das Konto kann sich danach wieder nur mit dem Passwort anmelden und den Schutz neu einrichten.', 'Zurücksetzen', async () => {
+    await q(sb.rpc('admin_reset_2fa', { target: el.dataset.id }));
+    toast('2FA zurückgesetzt');
+    route();
+  }),
   'change-password': () => formDialog({
     title: 'Passwort ändern',
     fields: [
@@ -742,7 +773,7 @@ const actions = {
     },
   }),
   'mfa-on': startMfaEnroll,
-  'mfa-off': (el) => confirmDialog('Zwei-Faktor-Schutz deaktivieren?', 'Das Admin-Konto ist dann nur noch mit dem Passwort geschützt.', 'Deaktivieren', async () => {
+  'mfa-off': (el) => confirmDialog('Zwei-Faktor-Schutz deaktivieren?', 'Das Konto ist dann nur noch mit dem Passwort geschützt.', 'Deaktivieren', async () => {
     await q(sb.auth.mfa.unenroll({ factorId: el.dataset.id }));
     await sb.auth.refreshSession();
     route();
