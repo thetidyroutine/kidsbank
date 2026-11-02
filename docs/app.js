@@ -206,7 +206,6 @@ function renderLogin() {
       btn.disabled = false;
       return;
     }
-    location.hash = '#/';
     route();
   });
 }
@@ -680,12 +679,16 @@ const actions = {
     toast('Genehmigt und gebucht');
     route();
   },
-  reject: async (el) => {
-    el.disabled = true;
-    await q(sb.rpc('decide_request', { request_id: Number(el.dataset.id), approve: false }));
-    toast('Abgelehnt');
-    route();
-  },
+  reject: (el) => formDialog({
+    title: 'Anfrage ablehnen',
+    submit: 'Ablehnen',
+    fields: [{ name: 'note', label: 'Nachricht (freiwillig)', maxlength: 200, hint: 'Wird per WhatsApp mitgeschickt.' }],
+    onSubmit: async (d) => {
+      await q(sb.rpc('decide_request', { request_id: Number(el.dataset.id), approve: false, note: d.note }));
+      toast('Abgelehnt');
+      route();
+    },
+  }),
   'withdraw-request': async (el) => {
     await q(sb.from('requests').delete().eq('id', Number(el.dataset.id)));
     toast('Anfrage zurückgezogen');
