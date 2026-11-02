@@ -138,7 +138,7 @@ dialog h2 { margin-bottom: 14px; }
 .row:first-child { border-top: 0; padding-top: 0; }
 .row:last-child { padding-bottom: 0; }
 .row-main { flex: 1; min-width: 0; }
-.row-title { font-weight: 520; overflow-wrap: anywhere; }
+.row-title { font-weight: 520; overflow-wrap: break-word; }
 .row-sub { font-size: 13px; color: var(--ink-3); }
 .amount { font-weight: 620; white-space: nowrap; text-align: right; }
 .amount.pos { color: var(--pos); }
@@ -191,4 +191,7 @@ code.secret { font-size: 13px; word-break: break-all; background: var(--surface-
   .hero-amount { font-size: 32px; }
   .hero .btns { width: 100%; }
   .hero .btn { flex: 1; }
+  .row:has(> .row-actions) { flex-wrap: wrap; row-gap: 2px; }
+  .row:has(> .row-actions) > .row-main { flex: 1 1 0; }
+  .row-actions { order: 3; width: 100%; justify-content: flex-end; }
 }
