@@ -1,0 +1,6 @@
+data/
+*.dump
+*.sql.gz
+__pycache__/
+.env
+.claude/
